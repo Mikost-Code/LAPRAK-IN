@@ -1,6 +1,6 @@
 # Laprak
 
-Aplikasi desktop Windows untuk menyusun laporan praktikum Jaringan Komputer. Implementasi mengikuti PRD di `docs/PRD_Laprak_Jarkom_AI.md` dan workspace tiga panel pada `design/Laprak Packet Tracer Report Workspace.png`.
+Aplikasi desktop Windows untuk menyusun laporan praktikum Jaringan Komputer. Antarmuka utama sekarang memakai **React + TypeScript + Vite**, dengan alur C: Beranda, Persiapan, Dokumentasi, Periksa laporan, dan PDF. Backend Python dan format SQLite proyek tetap digunakan. Referensi awal berada di `design/`; keputusan redesign tercatat di `docs/Audit_Desain_Laprak_2026-10-13.md`.
 
 ## Menjalankan
 
@@ -15,8 +15,31 @@ Untuk instalasi dari checkout baru:
 ```powershell
 python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements.lock.txt
+```
+
+Bangun antarmuka React satu kali (Node.js 24 diuji pada komputer pengembangan):
+
+```powershell
+cd frontend
+npm ci
+npm run build
+cd ..
 .venv/Scripts/python -m laprak
 ```
+
+`Jalankan Laprak.cmd` membuka desktop React. Ulangi `npm run build` setelah mengubah kode frontend. Pengguna versi portable tidak memerlukan Node.js atau server development. `npm run dev` hanya melayani aset frontend; akses laporan membutuhkan host desktop dan Qt WebChannel.
+
+### Arsitektur React desktop
+
+- `frontend/src/`: komponen React, tipe RPC, stylesheet, dan token desain. Ikon memakai satu keluarga Phosphor; tidak ada font atau script dari CDN.
+- `laprak/desktop.py`: jendela Chromium lokal, navigasi yang dibatasi ke aset aplikasi, dan koneksi Qt WebChannel. Renderer memakai software Qt untuk kompatibilitas driver Windows; sandbox Chromium tetap aktif.
+- `laprak/react_bridge.py`: daftar tindakan RPC yang eksplisit, validasi, snapshot publik, file picker Windows, serta penghubung ke penyimpanan/worker Python. API key tidak masuk snapshot, file settings, atau proyek ZIP.
+- Controller Qt lama dipakai sebagai lapisan kompatibilitas tersembunyi untuk antrean, watcher, PDF, dan generator yang telah diuji. Tampilan utama, formulir identitas/modul/bagian laporan, editor fakta, dan pengaturan memakai React. Dialog pemilihan file tetap native Windows.
+- Aset React dibundel lokal; tidak ada server HTTP aplikasi atau backend cloud. Layanan AI hanya dihubungi backend Python untuk operasi yang dipilih pengguna.
+
+Autosave memakai data editor terakhir, termasuk saat langsung berpindah halaman dan menutup jendela. Draf AI tidak menimpa tulisan yang sudah ada; revisi dapat diperiksa dan diterapkan lewat Riwayat draf. Persetujuan langkah memeriksa bahwa isi dan bukti tidak berubah sejak ditinjau.
+
+Build: `npm run build` di `frontend`. Format: `npm run format`. Uji integrasi renderer/bridge: `.venv/Scripts/python.exe -m tests.react_ui_smoke`. Render QA berada di `.local/react-qa/` dan memakai data sintetis. Pengujian ini memeriksa render nyata, screenshot lokal, autosave, perpindahan halaman, lebar laptop, dan penyimpanan saat jendela ditutup.
 
 Data pengaturan dan daftar sesi berada di `.local/`, yang dikecualikan dari Git. Sesi disimpan di folder yang dipilih pengguna. `--data-dir <folder>` memindahkan pengaturan, dan `--session <folder>` membuka sesi tertentu. Python 3.11 x64 dan Windows menjadi lingkungan pengembangan awal.
 
@@ -24,7 +47,7 @@ Data pengaturan dan daftar sesi berada di `.local/`, yang dikecualikan dari Git.
 
 ### Login GPT melalui Codex
 
-Buka **Pengaturan → Provider AI → Connect GPT**. Browser membuka halaman login resmi Codex. Setelah login berhasil, kembali ke Laprak: status berubah otomatis dan model bawaan akun terpilih. Klik **Simpan pengaturan**, lalu **Uji koneksi AI** untuk memeriksa akses model. Tidak perlu memasukkan API key, alamat server, atau password di Laprak. Kemampuan gambar tetap harus diuji sebelum dipakai.
+Buka **Persiapan → AI & screenshot → Hubungkan GPT → Connect GPT**. Browser membuka halaman login resmi Codex. Setelah login berhasil, kembali ke Laprak: status berubah otomatis dan model bawaan akun terpilih. Klik **Periksa kemampuan AI**, lalu **Selesai** untuk memeriksa akses model. Tidak perlu memasukkan API key, alamat server, atau password di Laprak. Kemampuan gambar tetap harus diuji sebelum dipakai.
 
 Codex CLI harus terpasang dan tersedia di PATH (di komputer pengembangan ini sudah terpasang). Untuk komputer baru, lihat [panduan resmi Codex CLI](https://developers.openai.com/codex/cli/). Penggunaan model mengikuti akses dan batas kuota akun; login berhasil belum menjamin kuota model tersedia.
 
@@ -32,17 +55,13 @@ Laprak menggunakan protokol resmi `codex app-server`, login browser `account/log
 
 Verifikasi protokol tanpa membuka browser atau memakai kuota: `.venv/Scripts/python.exe -m tests.codex_protocol_smoke`.
 
-1. Pilih **Sesi → Sesi baru**, isi identitas, lalu pilih folder kosong.
-2. **Pengaturan → Compiler dan template**: pilih template dan compiler. Jalankan pemeriksaan versi, dokumen kecil, dan template asli. Build tetap terkunci sampai pemeriksaan berhasil pada peluncuran ini.
-3. **Upload modul** PDF. Teks dan render disimpan per halaman. Pada **Periksa struktur**, koreksi teks/struktur JSON atau analisis dengan AI, lalu setujui struktur. Nomor halaman selalu nomor halaman file PDF; nomor tercetak disimpan terpisah bila diisi pada data modul.
-4. Buat langkah, klik instruksi di **Panduan modul** untuk memasang/melepas pemetaan ke langkah aktif. Klik kanan langkah untuk mengubah judul, urutan, atau alasan tidak berlaku.
-5. **Impor gambar** atau pilih folder screenshot eksternal. Gambar baru harus stabil sebelum diimpor; PNG/JPEG divalidasi dan disalin. Pilih penempatan ke langkah aktif atau langkah baru. Tahap yang ditangkap saat event diterima dipertahankan walaupun pilihan langkah berubah.
-6. Klik kanan thumbnail untuk memindahkan, mengurutkan, menghapus dari laporan, membuat crop/resize turunan, atau memulihkan gambar asli.
-7. Koreksi **Fakta konfigurasi**, tandai fakta diperiksa, isi penjelasan dan dua pemeriksaan, lalu **Setujui langkah**. Hasil gagal dan sebagian sukses merupakan hasil yang sah untuk didokumentasikan.
-8. Lengkapi **Bagian laporan & checklist**. Rangkuman, teori, alat, tugas, referensi, pembahasan, dan kesimpulan bisa ditulis manual dan tersimpan otomatis. AI pembahasan/kesimpulan hanya menerima langkah yang diperiksa; hasilnya harus diterapkan secara eksplisit. Tandai persetujuan bagian laporan setelah memeriksa isi dan sumbernya.
-9. **Build PDF** menghasilkan draf dari snapshot. Preview terakhir tetap tersedia jika build gagal. **Ekspor → proyek ZIP** tersedia untuk draf; **PDF final** memerlukan pemeriksaan lengkap dan build revisi terbaru.
+1. **Beranda → Buat laporan baru**: isi identitas, lalu pilih lokasi penyimpanan. Aplikasi membuat folder laporan baru tanpa mengubah berkas lain di lokasi tersebut.
+2. **Persiapan** memandu identitas, modul PDF, template, serta AI dan folder screenshot opsional. Periksa tugas modul melalui formulir biasa; tidak perlu mengedit JSON. Tugas dapat dijadikan langkah dokumentasi secara otomatis. Pengaturan compiler, model, dan provider tetap tersedia di Pengaturan lanjutan.
+3. **Dokumentasi** memakai dua panel: daftar langkah dan editor screenshot/penjelasan yang dapat digulir. Tambahkan screenshot, isi catatan, tulis manual atau buat draf dengan AI. Data yang terbaca dapat dikoreksi pada tab terpisah. Tombol penyelesaian menjelaskan syarat yang belum terpenuhi.
+4. **Periksa laporan** menampilkan kekurangan dengan tombol Perbaiki yang menuju langkah atau formulir terkait. Edit pembahasan, kesimpulan, dan bagian lain, lalu periksa sumbernya. Hasil pengujian gagal tetap dapat dilaporkan sesuai bukti.
+5. **PDF** menyediakan kesiapan pembuat PDF, pratinjau revisi terbaru, Simpan PDF final, serta ekspor proyek ZIP. Penyimpanan final tetap terkunci jika ada kekurangan atau PDF sudah usang.
 
-Gunakan tiga backtick untuk blok CLI; isi blok dimasukkan lewat `lstinputlisting`, sedangkan teks biasa di-escape terpusat. Perintah LaTeX yang ditulis pada editor diperlakukan sebagai teks.
+Klik kanan langkah atau thumbnail untuk tindakan tambahan. Folder screenshot otomatis bersifat opsional; pengguna dapat mengimpor gambar langsung. AI juga opsional: penulisan manual tersedia tanpa login. Antrean AI, autosave, dan perlindungan terhadap respons lama tetap dipertahankan.
 
 ## Skema AI per pengguna
 
