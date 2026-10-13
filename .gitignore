@@ -10,3 +10,5 @@ dist/
 *.sqlite*
 *.db
 *.zip
+node_modules/
+*.tsbuildinfo
