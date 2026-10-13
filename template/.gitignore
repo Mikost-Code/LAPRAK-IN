@@ -1,0 +1,15 @@
+# LaTeX build (MiKTeX / XeLaTeX)
+/build/
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.xdv
+*.bbl
+*.blg
+# PDF hasil kompilasi lokal (uncomment bila tidak ingin push PDF)
+# *.pdf
+# !main.pdf

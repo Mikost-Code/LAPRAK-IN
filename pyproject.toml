@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laprak"
+version = "0.1.0"
+description = "Workspace lokal laporan praktikum jaringan komputer"
+requires-python = ">=3.11"
+dependencies = ["PySide6", "Pillow", "httpx", "pydantic", "Jinja2", "watchdog", "pypdf", "keyring"]
+
+[project.scripts]
+laprak = "laprak.app:main"
+
+[tool.setuptools.packages.find]
+include = ["laprak*"]
+
+[tool.setuptools.package-data]
+laprak = ["assets/*.svg"]

@@ -1,0 +1,239 @@
+%% ============================================================
+%%  TEMPLATE LAPORAN PRAKTIKUM - IF25-21008 JARINGAN KOMPUTER
+%%  Teknik Informatika - Institut Teknologi Sumatera (ITERA)
+%%  Kompilasi: XeLaTeX (2x agar nomor halaman/daftar benar)
+%% ============================================================
+\documentclass[12pt]{article}
+
+% ---------- Ukuran kertas (B5 = 176 x 250 mm, sama dengan Word) ----------
+% Word section2 (isi): pgMar 1440 twips = 25.4mm semua sisi, header/footer 720 = 12.7mm.
+% Section1 cover 958 = 16.9mm tidak berpengaruh karena cover pakai TikZ overlay full-page.
+\usepackage[paperwidth=176mm,paperheight=250mm,
+            left=25.4mm,right=25.4mm,top=25.4mm,bottom=25.4mm,
+            headheight=15pt,headsep=10.1mm,footskip=12.54mm]{geometry}
+
+% ---------- Bahasa & font (XeLaTeX, font Windows asli sesuai docx) ----------
+% Word: body Garamond 12pt, heading Arial Black/Bernard MT/Arial, top cover Cambria
+\usepackage{fontspec}
+% Opsional (jika tersedia, mis. di Overleaf): \usepackage[indonesian]{babel}
+\setmainfont{Garamond}[
+  BoldFont = Garamond Bold,
+  ItalicFont = Garamond Italic,
+  BoldItalicFont = Garamond Bold,
+  BoldItalicFeatures = {FakeSlant=0.2},
+]
+\newfontfamily\arialblack{Arial Black}
+\newfontfamily\arialfont{Arial}[
+  BoldFont = Arial Bold,
+  ItalicFont = Arial Italic,
+  BoldItalicFont = Arial Bold Italic,
+]
+\newfontfamily\bernard{Bernard MT Condensed}[AutoFakeBold=1.5]
+\newfontfamily\cambriafont{Cambria}
+\usepackage{microtype}
+
+% ---------- Paket pendukung ----------
+\usepackage{graphicx}
+\usepackage[table,dvipsnames]{xcolor}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{array}
+\usepackage{amssymb}
+\usepackage{ragged2e}
+\usepackage{float}
+
+% ---------- Warna ----------
+\definecolor{abuabu}{HTML}{D6D6D6}    % kotak judul sampul
+\definecolor{abubanner}{HTML}{EAEAEA}  % banner judul sampul
+\definecolor{abujudul}{HTML}{959595}   % teks & garis halaman judul dalam
+\definecolor{abugelap}{HTML}{808080}
+\definecolor{tabhead}{HTML}{4F81BD}   % header tabel
+\definecolor{tabband}{HTML}{DBE5F1}   % baris selang-seling
+\definecolor{tabline}{HTML}{95B3D7}   % garis tabel
+
+% ---------- Data yang dapat diisi ----------
+\input{data/identitas}
+\input{data/kelas}
+\input{data/asisten}
+\input{data/anggota-kelompok}
+% Catatan boleh dihapus dari berkas data; gunakan nilai kosong jika tidak diisi.
+\providecommand{\catatananggota}{}
+\input{data/laporan}
+
+% ---------- Paragraf & spasi (1,5 spasi, rata kiri-kanan) ----------
+\linespread{1.4}\selectfont
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{3em}
+
+% ---------- Header & footer (Word: Arial Black 7pt header, 8pt footer) ----------
+% Garis header Word 151.7mm centered (melebar 13mm tiap sisi) -> hfoffset benar untuk GARIS.
+% Tapi TEKS header/footer Word selebar badan teks -> bungkus \makebox[\textwidth] agar rata body.
+\newcommand{\headtext}{%
+  \arialblack
+  {\fontsize{\headkirifs}{10}\selectfont\addfontfeatures{LetterSpace=\headls}LAPORAN PRAKTIKUM}\hfill
+  {\fontsize{\headfs}{10}\selectfont Teknik Informatika ITERA}}
+\newcommand{\headfs}{8.05}
+\newcommand{\headkirifs}{7}
+\newcommand{\headls}{31.5}
+% Garis header Word: tipis di atas, tebal di bawah
+\newcommand{\garisheader}{\hbox to\headwidth{\vbox{\hrule width\headwidth height 1.2pt
+    \vskip 0.6pt\hrule width\headwidth height 3pt}}\vskip -4.8pt}
+
+\fancypagestyle{halamandua}{%  halaman judul dalam
+  \fancyhf{}
+  \fancyhfoffset[HL]{13.85mm}\fancyhfoffset[HR]{12.44mm}
+  \fancyhead[C]{\hspace*{1.41mm}\raisebox{-2.3mm}[0pt][0pt]{\makebox[\textwidth][s]{\headtext}}}
+  \renewcommand{\headrulewidth}{4.8pt}
+  \renewcommand{\headrule}{\garisheader}
+  \fancyfoot[C]{\makebox[\textwidth][r]{\arialblack\fontsize{8}{9}\selectfont\thepage}}
+  \renewcommand{\footrulewidth}{0.5pt}
+}
+\fancypagestyle{isi}{%         halaman isi
+  \fancyhf{}
+  \fancyhfoffset[HL]{13.85mm}\fancyhfoffset[HR]{12.44mm}
+  \fancyhead[C]{\hspace*{1.41mm}\raisebox{-2.3mm}[0pt][0pt]{\makebox[\textwidth][s]{\headtext}}}
+  \renewcommand{\headrulewidth}{4.8pt}
+  \renewcommand{\headrule}{\garisheader}
+  \fancyfoot[C]{\makebox[\textwidth][r]{\arialblack\fontsize{8}{9}\selectfont\thepage}}
+  \renewcommand{\footrulewidth}{0.5pt}
+}
+\pagestyle{isi}
+
+% ---------- Judul bagian (Word: Dokumentasi Garamond 20pt B, Alat/Tugas Garamond 20pt B) ----------
+\titleformat{\section}[block]
+  {\centering\bfseries\fontsize{20}{24}\selectfont}{}{0pt}{}
+\titlespacing*{\section}{0pt}{36pt}{10pt}
+\titleformat{\subsection}[block]
+  {\bfseries\fontsize{11}{14}\selectfont\raggedright}{}{0pt}{}
+\titlespacing*{\subsection}{0pt}{4pt}{0pt}
+\titleformat{\subsubsection}[block]
+  {\centering\bfseries\fontsize{20}{24}\selectfont}{}{0pt}{}
+\titlespacing*{\subsubsection}{0pt}{12pt}{4pt}
+% Referensi: Word SectionLabel Arial Black 15pt
+\newcommand{\judulreferensi}[1]{%
+  \par\addvspace{10pt}%
+  {\arialblack\color{abugelap}\fontsize{15}{18}\selectfont #1}\par\vspace{8pt}}
+
+% ---------- Daftar (bullet & sub-bullet) ----------
+\setlist[itemize,1]{label=\textbullet,leftmargin=12.4mm,labelsep=6mm,labelwidth=0pt,
+                    align=left,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt}
+\setlist[itemize,2]{label=\texttt{o},leftmargin=12.4mm,labelsep=6mm,labelwidth=0pt,
+                    align=left,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt}
+
+% ---------- Caption (Word: Garamond 8pt, Gambar 1. / Tabel 1.) ----------
+\DeclareCaptionFont{eightpt}{\fontsize{8}{10}\selectfont}
+\captionsetup{font={eightpt},labelfont={eightpt},textfont={eightpt},labelsep=period,justification=centering,
+              skip=3pt}
+\renewcommand{\figurename}{Gambar}
+\renewcommand{\tablename}{Tabel}
+
+% ---------- Kotak rangkuman (Word Heading2b: Arial 12pt) ----------
+\newtcolorbox{rangkuman}{enhanced,sharp corners,colback=white,colframe=black,
+  % bingkai digambar sebagai stroke agar tidak hilang di zoom kecil
+  boxrule=0pt,frame hidden,borderline={0.6pt}{0pt}{black},
+  left=0.98mm,right=0.98mm,top=4.53mm,bottom=8.18mm,
+  fontupper=\arialfont\fontsize{12}{14}\selectfont}
+\newcommand{\titik}{\makebox[88mm]{\fontsize{8}{9}\selectfont\dotfill}}
+
+% ---------- Pengaturan tabel (Word: Garamond 8pt) ----------
+\renewcommand{\arraystretch}{1.0}
+\newcommand{\thead}[1]{\textcolor{white}{\textbf{\fontsize{8}{10}\selectfont #1}}}
+
+% Tampilkan pengganti yang rapi jika aset gambar opsional belum tersedia.
+\newcommand{\gambarpengganti}[1]{%
+  \IfFileExists{#1}{\includegraphics[width=95mm]{#1}}{%
+    \begin{tikzpicture}
+      \node[draw=abugelap,text=abugelap,minimum width=95mm,
+            minimum height=50mm,align=center,font=\arialfont\small]
+            {Gambar dokumentasi\\belum tersedia};
+    \end{tikzpicture}}}
+
+\begin{document}
+\pagenumbering{arabic}\setcounter{page}{0}
+
+%% ==================================================================
+%%  HALAMAN SAMPUL (halaman 0)
+%% ==================================================================
+\thispagestyle{empty}
+{\linespread{1}\selectfont\begin{tikzpicture}[remember picture,overlay,
+    shift={(current page.north west)},x=0.354mm,y=-0.354mm]
+  % teks kiri atas (Word: Cambria 14pt)
+  \node[anchor=north west,inner sep=0] at (49.2,45.2) {\cambriafont\fontsize{14}{16}\selectfont Laporan Praktikum};
+  % kotak "Pertemuan" (Word PartTitle Arial Black 10pt, angka PartLabel 52pt)
+  \fill[abuabu] (378.5,47.8) rectangle (448.6,128.3);
+  \node[anchor=north,inner sep=0] at (413.5,51)
+        {\arialblack\fontsize{10}{11}\selectfont Pertemuan};
+  \node[anchor=north,inner sep=0,text=white] at (413.5,82)
+        {\arialblack\fontsize{52}{52}\selectfont\pertemuan};
+  % kode mata kuliah + garis (Word CompanyName: Garamond)
+  \node[anchor=north west,inner sep=0] at (48.6,148.6)
+        {\fontsize{12.3}{14}\selectfont IF25-21008: JARINGAN KOMPUTER};
+  \draw[line width=0.5pt] (45.4,162.5) -- (449.4,162.5);
+  \node[anchor=north west,inner sep=0] at (48.6,170)
+        {\fontsize{18.5}{21}\selectfont Laporan Praktikum/Lab};
+  % banner judul (Word TitleCover: Bernard MT Condensed 24pt Bold)
+  \fill[abubanner] (15.1,236.7) rectangle (479.7,333.9);
+  \node[anchor=center,inner sep=0,align=center] at (249,287.6)
+        {\bernard\bfseries\fontsize{24}{28}\selectfont\judul};
+  % identitas (rata kanan, Word: Garamond 14pt Bold)
+  \node[anchor=north east,inner sep=0,align=right,font=\bfseries\fontsize{14}{15.6}\selectfont] at (449.2,379.2)
+        {\namapeserta\\ \kelas\\ \nim};
+  \node[anchor=north east,inner sep=0,align=right,font=\bfseries\fontsize{14}{15.6}\selectfont] at (449.2,444.4)
+        {\underline{Tim Asisten}\\ \asistenA\\ \asistenB};
+  % institusi (Word: Garamond 14pt Bold)
+  \node[anchor=north east,inner sep=0,align=right,font=\bfseries\fontsize{14}{15.4}\selectfont] at (449.2,545.8)
+        {Teknik Informatika\\ Fakultas Teknologi Industri\\
+         Institut Teknologi Sumatera\\ \bulantahun};
+  % logo institusi (tiga logo, rata bawah)
+  \node[anchor=base west,inner sep=0] at (42,649.4)
+        {\raisebox{-2.4pt}{\includegraphics[width=57.6pt]{aset/gambar/logo-itera.png}}\hspace{23pt}%
+         \includegraphics[width=114.3pt]{aset/gambar/logo-fti.png}\hspace{20.3pt}%
+         \includegraphics[width=156.9pt]{aset/gambar/logo-if.png}};
+\end{tikzpicture}}
+\newpage
+
+%% ==================================================================
+%%  HALAMAN JUDUL DALAM (halaman 1)
+%% ==================================================================
+\thispagestyle{halamandua}
+{\linespread{1}\selectfont\begin{tikzpicture}[remember picture,overlay,
+    shift={(current page.north west)},x=0.354mm,y=-0.354mm]
+  \node[anchor=north,inner sep=0,align=center,text=abujudul,font=\fontsize{9.4}{16.6}\selectfont\addfontfeatures{LetterSpace=14.5}] at (248.6,139.6)
+    {FAKULTAS TEKNOLOGI INDUSTRI\\ ITERA 2026};
+  \node[anchor=north,inner sep=0,text=abujudul] at (251.8,206.2)
+    {\arialblack\fontsize{23.5}{27}\selectfont\addfontfeatures{LetterSpace=-7}\judul};
+  \draw[abujudul,line width=0.6pt] (70,243.6) -- (426.4,243.6);
+  % Anggota kelompok dipusatkan di tengah halaman, terpisah dari alamat institusi.
+  % Koordinat y lebih kecil menggeser blok ke atas (satuan 0.354 mm).
+  \node[anchor=center,inner sep=0,align=center,font=\bfseries\fontsize{9.6}{11.2}\selectfont] at (249,353)
+    {Nama anggota kelompok:\\\daftaranggota
+     \ifx\catatananggota\empty\else\\[6pt]\catatananggota\fi};
+  % alamat institusi (Word ReturnAddress: Garamond)
+  \node[anchor=north,inner sep=0,align=center,font=\fontsize{9.6}{11.2}\selectfont] at (249,541.3)
+    {ITERA Laboratory\\ Program Studi Teknik Informatika\\
+     Fakultas Teknologi Industri\\ Institut Teknologi Sumatera};
+  \node[anchor=north,inner sep=0,align=center,font=\fontsize{9.6}{11.2}\selectfont] at (249,596.7)
+    {Jl. Terusan Ryacudu, Desa Way Hui, Kecamatan Jati Agung,\\
+     Lampung Selatan -- Lampung 35365\\
+     Telp. +62-721-8030188; 8030189};
+\end{tikzpicture}}
+\newpage
+%% ==================================================================
+%%  ISI LAPORAN (halaman 2 dst.)
+%% ==================================================================
+\pagestyle{isi}
+
+% Setiap bagian laporan disimpan terpisah agar mudah diisi.
+\input{isi/rangkuman}
+\input{isi/dasar-teori}
+\input{isi/dokumentasi}
+\input{isi/alat-dan-bahan}
+\input{isi/tugas}
+\input{isi/referensi}
+
+\end{document}

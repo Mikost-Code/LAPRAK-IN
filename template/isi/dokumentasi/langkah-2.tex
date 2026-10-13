@@ -1,0 +1,30 @@
+% !TeX root = ../../main.tex
+\newpage % sama dengan Word: langkah kedua mulai di halaman baru (hapus jika tidak perlu)
+\item Langkah kedua adalah (silahkan jelaskan langkah-langkah
+      selama praktikum)
+
+      Jika ada tabel yang perlu dilampirkan berikut format table nya.
+
+      \begin{table}[H]
+        \centering
+        \caption{Contoh penggunaan table}
+        \linespread{1}\fontsize{8}{10}\selectfont
+        \rowcolors{2}{tabband}{white}
+        \setlength{\tabcolsep}{3pt}
+        \renewcommand{\arraystretch}{0.9}
+        \arrayrulecolor{tabline}
+        \begin{tabular}{!{\color{tabline}\vrule}>{\centering\arraybackslash}p{9mm}!{\color{tabline}\vrule}p{30mm}!{\color{tabline}\vrule}p{30mm}!{\color{tabline}\vrule}p{30mm}!{\color{tabline}\vrule}}
+          \hline
+          \rowcolor{tabhead}
+          \thead{No} & \thead{Judul kolom 1} & \thead{Judul Kolom 2} & \thead{Judul Kolom 3} \\
+          \hline
+          & & & \\ \hline
+          & & & \\ \hline
+          & & & \\ \hline
+          & & & \\ \hline
+          & & & \\ \hline
+          & & & \\ \hline
+          & & & \\ \hline
+          & & & \\ \hline
+        \end{tabular}
+      \end{table}
