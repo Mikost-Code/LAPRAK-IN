@@ -3,6 +3,8 @@ from pathlib import Path
 STYLE = """
 QWidget { font-family: 'Segoe UI'; font-size: 13px; color: #191d24; }
 QMainWindow, QDialog { background: #f7f8fa; }
+QWidget#workflowPage { background: #f7f8fa; }
+QWidget#documentEditor { background: white; }
 QFrame#bar { background: #fcfcfd; border-bottom: 1px solid #dce0e4; }
 QFrame#panel { background: #ffffff; border: 1px solid #dfe3e7; border-radius: 5px; }
 QLabel#heading { font-size: 19px; font-weight: 650; }
@@ -16,6 +18,12 @@ QPushButton:hover, QToolButton:hover { background: #f0f4f0; border-color: #80a48
 QPushButton:pressed { background: #e6ede5; }
 QPushButton#primary { background: #21633e; border: 1px solid #21633e; color: white; font-weight: 600; }
 QPushButton#primary:hover { background: #194f31; }
+QPushButton#primary:disabled { color: #89918f; background: #edf0ed; border-color: #dde2de; }
+QPushButton#workflowNav { border: none; background: transparent; color: #656e7c; padding: 10px 16px; }
+QPushButton#workflowNav:checked { background: #e4eee0; color: #173b20; font-weight: 600; }
+QPushButton#workflowNav:disabled { color: #a3a9ad; background: transparent; }
+QFrame#workflowCard, QWidget#workflowCard { background: white; border: 1px solid #dfe3e7; border-radius: 8px; }
+QListWidget#recentReports { background: white; border: 1px solid #dfe3e7; border-radius: 8px; }
 QPushButton#link { color: #24683b; background: transparent; border: none; padding: 4px; }
 QPushButton:disabled { color: #89918f; background: #edf0ed; border-color: #dde2de; }
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QComboBox, QDateEdit { background: white; border: 1px solid #d7dce1; border-radius: 5px; padding: 7px; selection-background-color: #dcebdd; selection-color: #172c1d; }

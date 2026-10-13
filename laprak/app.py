@@ -28,6 +28,7 @@ from .storage import Project, digest, inside, uid
 from .style import STYLE
 from .workers import Worker
 from .images import derivative, prepare_image
+from .workflow import Workflow
 
 
 class WatchBridge(QObject):
@@ -69,7 +70,7 @@ def row(*widgets):
     return layout
 
 
-class Workspace(QMainWindow):
+class Workspace(Workflow, QMainWindow):
     def __init__(self, data_root: Path):
         super().__init__()
         self.data_root = data_root.resolve()
@@ -113,6 +114,7 @@ class Workspace(QMainWindow):
         last = self.settings.get("last_project")
         if last and (Path(last) / "session.sqlite").is_file():
             self.load_project(Path(last))
+        self.show_stage(0)
 
     def make_ui(self):
         central = QWidget()
@@ -126,10 +128,10 @@ class Workspace(QMainWindow):
         sessions = button("Sesi", self.dashboard)
         sessions.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon))
         header_layout.addWidget(sessions)
-        self.session_title = label("Workspace praktikum", "section")
+        self.session_title = label("Laporan praktikum", "section")
         header_layout.addWidget(self.session_title)
         header_layout.addStretch()
-        self.saved_label = label("Lokal · tanpa akun", "muted")
+        self.saved_label = label("Tersimpan di perangkat", "muted")
         header_layout.addWidget(self.saved_label)
         self.build_button = button("Build PDF", self.build)
         self.build_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
@@ -328,6 +330,7 @@ class Workspace(QMainWindow):
             action.setShortcut(key)
             action.triggered.connect(function)
             self.addAction(action)
+        self.install_workflow()
 
     def error(self, text):
         QMessageBox.warning(self, "Perlu tindakan", str(text))
@@ -362,31 +365,7 @@ class Workspace(QMainWindow):
         return worker
 
     def dashboard(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Sesi lokal")
-        dialog.resize(620, 470)
-        layout = QVBoxLayout(dialog)
-        layout.addWidget(label("Laporan praktikum kamu", "heading"))
-        layout.addWidget(label("Semua pekerjaan dan bukti tersimpan di perangkat ini.", "muted"))
-        sessions = QListWidget()
-        recent = [p for p in self.settings.get("recent", []) if (Path(p) / "session.sqlite").is_file()]
-        for path in recent:
-            sessions.addItem(Path(path).name + "\n" + path)
-        if not recent:
-            sessions.addItem("Belum ada sesi. Buat laporan praktikum pertamamu.")
-        layout.addWidget(sessions, 1)
-        def open_selected():
-            index = sessions.currentRow()
-            if 0 <= index < len(recent):
-                dialog.accept()
-                self.load_project(Path(recent[index]))
-        sessions.itemDoubleClicked.connect(open_selected)
-        layout.addLayout(row(button("Sesi baru", lambda: (dialog.accept(), self.new_session()), True),
-                             button("Buka folder sesi", lambda: (dialog.accept(), self.open_session())),
-                             button("Impor ZIP", lambda: (dialog.accept(), self.import_project()))))
-        if self.project:
-            layout.addWidget(button("Duplikasi sesi aktif", lambda: (dialog.accept(), self.duplicate_session())))
-        dialog.exec()
+        self.show_stage(0)
 
     def new_session(self):
         if self.tasks:
@@ -395,13 +374,12 @@ class Workspace(QMainWindow):
         dialog = IdentityDialog(self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        folder = QFileDialog.getExistingDirectory(self, "Pilih folder kosong untuk sesi")
+        folder = QFileDialog.getExistingDirectory(self, "Pilih lokasi penyimpanan laporan; folder baru akan dibuat di dalamnya")
         if not folder:
             return
         try:
-            root = Path(folder)
-            if any(root.iterdir()):
-                raise ValueError("Gunakan folder kosong agar aset sesi terpisah dari file lain.")
+            root = Path(folder) / f"Laprak-{dialog.values()['date']}-{uid()[:6]}"
+            root.mkdir()
             project = Project.create(root, dialog.values())
             template = Path(self.settings.get("template", Path.cwd() / "template"))
             if template.is_dir():
@@ -412,7 +390,8 @@ class Workspace(QMainWindow):
                     self.error(error)
             project.close()
             self.load_project(root)
-            self.open_settings()
+            self.show_stage(1)
+            self.show_setup(1)
         except Exception as error:
             self.error(error)
 
@@ -452,6 +431,8 @@ class Workspace(QMainWindow):
         if folder and Path(folder).is_dir():
             self.start_watch(Path(folder))
         self.load_pdf()
+        self.show_stage(2 if project.get("module_reviewed") else 1)
+        self.show_setup(1 if not project.get("module_reviewed") else 0)
         self.statusBar().showMessage("Sesi dipulihkan. Periksa compiler saat peluncuran ini sebelum build.", 8000)
 
     def refresh(self):
@@ -466,7 +447,7 @@ class Workspace(QMainWindow):
                 status = "Tidak berlaku"
             item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, step["id"])
-            item.setSizeHint(QSize(270, 51))
+            item.setSizeHint(QSize(0, 76))
             item.setToolTip(step["title"])
             self.steps_list.addItem(item)
             step_row = QWidget()
@@ -477,13 +458,18 @@ class Workspace(QMainWindow):
             number.setAlignment(Qt.AlignmentFlag.AlignCenter)
             number.setFixedSize(31, 31)
             number.setStyleSheet("font-weight: 600; " + ("background: #2d7136; color: white; border-radius: 15px;" if step["id"] == self.active else ""))
-            title = QLabel(QFontMetrics(self.font()).elidedText(step["title"], Qt.TextElideMode.ElideRight, 118))
+            title = QLabel(step["title"])
+            title.setWordWrap(True)
             title.setStyleSheet("font-weight: 600;" if step["id"] == self.active else "")
             state = label(status, "success" if step["reviewed"] else "muted")
             state.setStyleSheet("font-size: 11px;")
             step_layout.addWidget(number)
-            step_layout.addWidget(title, 1)
-            step_layout.addWidget(state)
+            details = QVBoxLayout()
+            details.setContentsMargins(0, 0, 0, 0)
+            details.setSpacing(3)
+            details.addWidget(title)
+            details.addWidget(state)
+            step_layout.addLayout(details, 1)
             self.steps_list.setItemWidget(item, step_row)
             if step["id"] == self.active:
                 selected = index
@@ -497,8 +483,9 @@ class Workspace(QMainWindow):
             module = self.project.get("module", {})
             self.module_label.setText(module.get("name", "Modul belum dipilih"))
             for instruction in self.project.get("instructions", []):
-                mapped = any(instruction["id"] in s.get("instruction_ids", []) for s in steps)
-                item = QListWidgetItem(("✓ " if mapped else "○ ") + instruction["description"])
+                current = next((s for s in steps if s["id"] == self.active), {})
+                mapped = instruction["id"] in current.get("instruction_ids", [])
+                item = QListWidgetItem(("✓ " if mapped else "○ ") + instruction["description"] + f"\nHalaman PDF {instruction['page']}")
                 item.setToolTip(f"Halaman file {instruction['page']} · {instruction.get('evidence', '')}")
                 item.setData(Qt.ItemDataRole.UserRole, instruction)
                 self.instructions.addItem(item)
@@ -524,6 +511,8 @@ class Workspace(QMainWindow):
         pending = [j for j in self.project.jobs() if j["status"] in ("queued", "running", "interrupted", "failed")] if enabled else []
         self.status_jobs.setText(f"Antrean: {len(pending)}" + (" · jeda" if self.queue_paused else ""))
         self.loading = False
+
+        self.refresh_workflow()
 
     def select_step(self, index):
         if self.loading or not self.project or index < 0:
@@ -632,7 +621,7 @@ class Workspace(QMainWindow):
                 self.error("Isi penjelasan dan selesaikan kedua pemeriksaan.")
                 return
             if any(not fact.get("reviewed") for fact in step["facts"]):
-                self.error("Periksa setiap fakta di tab Fakta konfigurasi.")
+                self.error("Periksa setiap nilai di tab Data yang terbaca.")
                 return
         self.project.save_step(self.active, {"reviewed": True}, invalidate=False)
         self.review_badge.setText("Diperiksa")
@@ -933,87 +922,17 @@ class Workspace(QMainWindow):
 
     def review_module(self):
         if not self.project or not self.project.get("module"):
+            self.show_stage(1)
+            self.show_setup(1)
             return
+        from .module_review import ModuleReviewDialog
         self.flush()
-        module = self.project.get("module")
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Periksa struktur modul")
-        dialog.resize(810, 680)
-        layout = QVBoxLayout(dialog)
-        layout.addWidget(label("Panduan praktikum", "heading"))
-        layout.addWidget(label("Nomor halaman adalah halaman file PDF. Edit struktur sebelum menyetujuinya.", "muted"))
-        tabs = QTabWidget()
-        pages = QTextEdit()
-        pages.setPlainText("\n\n".join(f"[Halaman file {p['page']}]\n{p['text'] or '[Teks belum terbaca: masukkan transkripsi manual]'}" for p in module["pages"]))
-        tabs.addTab(pages, "Teks sumber (bisa dikoreksi)")
-        structure = QTextEdit()
-        default = {"objectives": [], "theory": "", "tools": [], "instructions": [],
-                   "unknown_pages": [p["page"] for p in module["pages"] if p["needs_vision"]]}
-        analysis = self.project.get("module_analysis", {}) or default
-        structure.setPlainText(self.project.get("module_structure_draft", "") or json.dumps(analysis, ensure_ascii=False, indent=2))
-        tabs.addTab(structure, "Struktur JSON")
-        pending = self.project.get("module_analysis_pending", {})
-        if pending:
-            candidate_page = QWidget()
-            candidate_layout = QVBoxLayout(candidate_page)
-            candidate_text = QTextEdit()
-            candidate_text.setReadOnly(True)
-            candidate_text.setPlainText(json.dumps(pending, ensure_ascii=False, indent=2))
-            candidate_layout.addWidget(candidate_text)
-            candidate_layout.addWidget(button("Terapkan draf ke struktur untuk diperiksa", lambda: structure.setPlainText(candidate_text.toPlainText())))
-            tabs.addTab(candidate_page, "Draf AI tersedia")
-        layout.addWidget(tabs, 1)
-        def save_text():
-            # Corrected source is explicit user context; original page extraction remains stored.
-            self.project.set("module_manual_text", pages.toPlainText())
-            self.project.set("module_reviewed", False)
-            self.project.bump()
-        draft_timer = QTimer(dialog)
-        draft_timer.setSingleShot(True)
-        draft_timer.setInterval(700)
-        def save_draft():
-            self.project.set("module_manual_text", pages.toPlainText())
-            self.project.set("module_structure_draft", structure.toPlainText())
-            self.project.set("module_reviewed", False)
-            self.project.bump()
-        draft_timer.timeout.connect(save_draft)
-        pages.textChanged.connect(lambda: draft_timer.start())
-        structure.textChanged.connect(lambda: draft_timer.start())
-        def analyze():
-            save_text()
-            self.analyze_module()
-            dialog.accept()
-        def approve():
-            try:
-                result = ModuleAnalysis.model_validate_json(structure.toPlainText()).model_dump()
-                for instruction in result["instructions"]:
-                    if not 1 <= instruction["page"] <= len(module["pages"]):
-                        raise ValueError("Nomor halaman instruksi di luar PDF.")
-                if result["unknown_pages"]:
-                    raise ValueError("Selesaikan transkripsi/analisis halaman yang belum terbaca; hapus dari unknown_pages setelah diperiksa.")
-                if not result["instructions"]:
-                    raise ValueError("Tambahkan instruksi praktikum terlebih dahulu.")
-                previous = self.project.get("instructions", [])
-                instructions = []
-                for instruction in result["instructions"]:
-                    existing = next((p for p in previous if p["description"] == instruction["description"] and p["page"] == instruction["page"]), None)
-                    instructions.append(dict(instruction, id=existing["id"] if existing else uid()))
-                save_text()
-                self.project.set("instructions", instructions)
-                self.project.set("module_analysis", result)
-                self.project.set("module_structure_draft", json.dumps(result, ensure_ascii=False, indent=2))
-                self.project.set("module_reviewed", True)
-                draft_timer.stop()
-                self.refresh()
-                dialog.accept()
-            except Exception as error:
-                self.error(error)
-        layout.addLayout(row(button("Simpan teks", save_text), button("Analisis modul dengan AI", analyze), None,
-                             button("Setujui struktur", approve, True)))
+        dialog = ModuleReviewDialog(self)
         dialog.exec()
-        if draft_timer.isActive():
-            draft_timer.stop()
-            save_draft()
+        self.refresh()
+        if self.steps_list.count():
+            self.select_step(self.steps_list.currentRow())
+        return
 
     def map_instruction(self, item):
         if not self.active:
@@ -1030,8 +949,11 @@ class Workspace(QMainWindow):
         self.source_label.setText(f"Sumber: halaman file {instruction['page']}")
         self.refresh()
 
-    def open_settings(self):
+    def open_settings(self, tab=0, simple=False):
         dialog = SettingsDialog(self, dict(self.settings), self.credentials, self.check_setup)
+        dialog.tabs.setCurrentIndex(tab)
+        if simple:
+            dialog.simplify(tab)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             config = dialog.values()
             if any(config.get(k) != self.settings.get(k) for k in ("compiler", "engine", "template")):
@@ -1317,7 +1239,8 @@ class Workspace(QMainWindow):
         self.flush()
         dialog = QDialog(self)
         dialog.setWindowTitle("Bagian laporan dan kelengkapan")
-        dialog.resize(850, 700)
+        available = self.screen().availableGeometry()
+        dialog.resize(min(850, available.width() - 32), min(700, available.height() - 32))
         layout = QVBoxLayout(dialog)
         tabs = QTabWidget()
         editors = {}
@@ -1344,8 +1267,14 @@ class Workspace(QMainWindow):
         blockers = self.project.blockers()
         checklist.setPlainText("\n".join("○ " + item for item in blockers) if blockers else "✓ Semua pemeriksaan selesai. Hasil pengujian gagal tetap boleh diekspor jika telah didokumentasikan.")
         tabs.addTab(checklist, "Checklist")
+        tabs.tabBar().hide()
+        section_picker = QComboBox()
+        section_picker.addItems([tabs.tabText(i) for i in range(tabs.count())])
+        section_picker.currentIndexChanged.connect(tabs.setCurrentIndex)
+        layout.addWidget(label("Bagian laporan yang ingin diedit", "section"))
+        layout.addWidget(section_picker)
         layout.addWidget(tabs)
-        sections_review = QCheckBox("Saya sudah memeriksa semua bagian laporan dan sumbernya")
+        sections_review = QCheckBox("Semua bagian dan sumber sudah saya periksa")
         sections_review.setChecked(self.project.get("sections_reviewed", False))
         layout.addWidget(sections_review)
         autosave = QTimer(dialog)
@@ -1419,7 +1348,7 @@ class Workspace(QMainWindow):
             shutil.copy2(result["pdf"], destination)
             self.project.set("last_build", dict(result, pdf="output/laporan.pdf"))
             self.load_pdf()
-            self.right_tabs.setCurrentIndex(1)
+            self.show_stage(4)
             self.refresh()
         def failed(error):
             self.pdf_status.setText("Build gagal. Preview terakhir dipertahankan.")
@@ -1439,9 +1368,9 @@ class Workspace(QMainWindow):
             return
         build = self.project.get("last_build", {})
         if not build:
-            self.pdf_status.setText("Belum ada PDF. Periksa compiler, lalu Build PDF.")
+            self.pdf_status.setText("Belum ada PDF. Periksa kesiapan PDF, lalu klik Buat pratinjau PDF.")
         elif build["revision"] != self.project.get("revision", 0):
-            self.pdf_status.setText("Preview revisi lama. Build ulang untuk memasukkan perubahan terbaru.")
+            self.pdf_status.setText("Pratinjau belum memuat perubahan terakhir. Klik Buat pratinjau PDF untuk memperbaruinya.")
         else:
             self.pdf_status.setText("Draf PDF · revisi " + str(build["revision"]) + (" · pemeriksaan belum lengkap" if self.project.blockers() else " · pemeriksaan lengkap"))
 

@@ -45,9 +45,13 @@ class IdentityDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Identitas laporan")
         self.setMinimumWidth(510)
+        available = self.screen().availableGeometry()
+        self.resize(min(640, available.width() - 32), min(700, available.height() - 32))
         layout = QVBoxLayout(self)
         layout.addWidget(label("Identitas praktikum", "heading"))
-        form = QFormLayout()
+        fields_page = QWidget()
+        form = QFormLayout(fields_page)
+        self.identity_form = form
         self.inputs = {}
         months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
         today = date.today()
@@ -61,9 +65,24 @@ class IdentityDialog(QDialog):
                 field.setText((identity or defaults).get(key, ""))
             self.inputs[key] = field
             form.addRow(text, field)
-        layout.addLayout(form)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(fields_page)
+        layout.addWidget(scroll, 1)
+        extras = ["month_year", "assistant_a", "assistant_b", "members"]
+        for key in extras:
+            form.setRowVisible(self.inputs[key], False)
+        toggle = QCheckBox("Isi identitas tambahan sesuai template")
+        toggle.setChecked(any((identity or {}).get(key) for key in extras))
+        for key in extras:
+            form.setRowVisible(self.inputs[key], toggle.isChecked())
+        toggle.toggled.connect(lambda checked: [form.setRowVisible(self.inputs[key], checked) for key in extras])
+        layout.addWidget(toggle)
         controls = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Save)
         controls.accepted.connect(self.save)
+        controls.button(QDialogButtonBox.StandardButton.Save).setText("Simpan identitas" if identity else "Lanjut · pilih lokasi laporan")
+        controls.button(QDialogButtonBox.StandardButton.Save).setObjectName("primary")
+        controls.button(QDialogButtonBox.StandardButton.Cancel).setText("Batal")
         controls.rejected.connect(self.reject)
         layout.addWidget(controls)
 
@@ -118,6 +137,7 @@ class SettingsDialog(QDialog):
         environment.setObjectName("settingsPage")
         environment.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         form = QFormLayout(environment)
+        self.environment_form = form
         form.setContentsMargins(20, 20, 20, 20)
         form.setVerticalSpacing(14)
         self.engine = ScrollSafeComboBox()
@@ -125,6 +145,7 @@ class SettingsDialog(QDialog):
         self.engine.setCurrentText(settings.get("engine", "xelatex"))
         self.compiler = QLineEdit(settings.get("compiler", detect_compiler(self.engine.currentText())))
         compiler_row = QHBoxLayout()
+        self.compiler_row = compiler_row
         compiler_row.addWidget(self.compiler)
         compiler_row.addWidget(button("Pilih…", self.choose_compiler))
         form.addRow("Engine", self.engine)
@@ -147,6 +168,7 @@ class SettingsDialog(QDialog):
         ai_page.setObjectName("settingsPage")
         ai_page.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         ai_form = QFormLayout(ai_page)
+        self.ai_form = ai_form
         ai_form.setContentsMargins(20, 18, 20, 20)
         ai_form.setVerticalSpacing(12)
         ai_form.setHorizontalSpacing(20)
@@ -194,6 +216,7 @@ class SettingsDialog(QDialog):
         model_row.addWidget(self.model, 1)
         model_row.addWidget(self.models_button)
         ai_form.addRow("Model", model_row)
+        self.model_row = model_row
         ai_form.addRow(self.provider_hint)
         ai_form.addRow(self.connect_button)
         ai_form.addRow(self.cancel_login_button)
@@ -272,6 +295,36 @@ class SettingsDialog(QDialog):
         self.tabs.currentChanged.connect(lambda index: self.test_button.setVisible(index == 1))
         self.test_status.setVisible(self.tabs.currentIndex() == 1)
         self.tabs.currentChanged.connect(lambda index: self.test_status.setVisible(index == 1))
+
+    def simplify(self, tab):
+        self.simple_mode = True
+        self.tabs.tabBar().hide()
+        self.tabs.setCurrentIndex(tab)
+        self.setWindowTitle("Hubungkan AI" if tab == 1 else "Siapkan PDF laporan")
+        self.findChild(QLabel, "heading").setText("Hubungkan GPT" if tab == 1 else "Siapkan PDF laporan")
+        self.findChild(QLabel, "muted").setText("Login di browser tanpa memasukkan API key." if tab == 1 else "Pilih format laporan, lalu periksa kesiapan pembuat PDF.")
+        self.environment_form.setRowVisible(self.engine, False)
+        self.environment_form.setRowVisible(self.compiler_row, False)
+        details = button("Tampilkan pengaturan teknis", self.reveal_technical)
+        self.environment_form.addRow(details)
+        if tab == 1:
+            self.provider.setCurrentText("GPT (login Codex)")
+            self.ai_form.setRowVisible(self.provider, False)
+            self.ai_form.setRowVisible(self.model_row, False)
+            self.vision.hide()
+            self.test_button.setText("Periksa kemampuan AI")
+            self.provider_hint.setText("Masuk melalui browser dengan akun ChatGPT. Kamu dapat kembali ke Laprak setelah login berhasil. Pemakaian mengikuti kuota akunmu.")
+            self.ai_form.addRow(button("Pilih provider atau model lain", self.reveal_technical))
+        self.findChild(QDialogButtonBox).button(QDialogButtonBox.StandardButton.Save).setText("Selesai")
+
+    def reveal_technical(self):
+        self.simple_mode = False
+        self.tabs.tabBar().show()
+        self.environment_form.setRowVisible(self.engine, True)
+        self.environment_form.setRowVisible(self.compiler_row, True)
+        self.ai_form.setRowVisible(self.provider, True)
+        self.ai_form.setRowVisible(self.model_row, True)
+        self.vision.show()
 
     def provider_changed(self, provider):
         self.endpoint.setText({"Ollama": "http://localhost:11434", "OpenCode Zen (API)": "https://opencode.ai/zen/v1"}.get(provider, "https://api.openai.com/v1"))
@@ -449,6 +502,8 @@ class SettingsDialog(QDialog):
         if self.worker:
             return
         config = self.values()
+        if getattr(self, "simple_mode", False):
+            config["vision"] = True
         secret = self.secret.text() or self.credentials.get(self.profile())
         try:
             adapter = Adapter(config, secret)
@@ -473,8 +528,12 @@ class SettingsDialog(QDialog):
                 with tempfile.TemporaryDirectory() as folder:
                     path = Path(folder) / "vision-test.png"
                     image.save(path)
-                    response = adapter.run("Baca kode yang terlihat pada gambar. Isi narrative hanya dengan kode tersebut, facts=[], unknown=[], result='belum diketahui'.", images=[path], cancel=cancel)
-                    result["vision"] = code == response["narrative"].strip()
+                    try:
+                        response = adapter.run("Baca kode yang terlihat pada gambar. Isi narrative hanya dengan kode tersebut, facts=[], unknown=[], result='belum diketahui'.", images=[path], cancel=cancel)
+                        result["vision"] = code == response["narrative"].strip()
+                    except AIError:
+                        if not getattr(self, "simple_mode", False) or cancel.is_set():
+                            raise
             return result
         self.worker = Worker(run)
         self.worker.signals.done.connect(self.test_done)
