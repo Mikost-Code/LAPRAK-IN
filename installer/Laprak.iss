@@ -21,4 +21,4 @@ Source: "..\dist\Laprak\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdir
 Name: "{group}\Laprak"; Filename: "{app}\Laprak.exe"; Parameters: "--data-dir ""{localappdata}\Laprak"""; WorkingDir: "{app}"
 
 [Run]
-Filename: "{app}\Laprak.exe"; Parameters: "--data-dir ""{localappdata}\Laprak"""; Description: "Buka Laprak dan periksa compiler, template, serta AI"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\Laprak.exe"; Parameters: "--data-dir ""{localappdata}\Laprak"""; Description: "Buka Laprak untuk membuat atau melanjutkan laporan"; Flags: postinstall nowait skipifsilent
