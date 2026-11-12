@@ -12,3 +12,8 @@ dist/
 *.zip
 node_modules/
 *.tsbuildinfo
+
+# backend
+backend/data/
+backend/.env
+*.egg-info/
