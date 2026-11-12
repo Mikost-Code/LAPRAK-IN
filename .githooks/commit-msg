@@ -1,0 +1,9 @@
+#!/bin/sh
+# Strip AI attribution trailers from commit messages (see AGENTS.md).
+# Activate once per clone: git config core.hooksPath .githooks
+file="$1"
+tmp="$file.tmp"
+grep -viE '^(co-authored-by|signed-off-by):.*(claude|anthropic|codex|openai|copilot|github-actions\[bot\]|cursor|gemini|google-labs|ai@|noreply@anthropic)' "$file" \
+  | grep -viE '^(🤖 )?(generated|made|written|created) (with|by) .*(claude|codex|copilot|cursor|gemini|chatgpt|ai\b)' > "$tmp"
+mv "$tmp" "$file"
+exit 0
