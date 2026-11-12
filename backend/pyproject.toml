@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laprak"
+version = "2.0.0"
+description = "Laprak web: template + dokumentasi bergambar + narasi AI milik pengguna"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi[standard]",
+  "sqlmodel",
+  "alembic",
+  "authlib",
+  "cryptography",
+  "itsdangerous",
+  "pydantic-settings",
+  "httpx",
+  "Pillow",
+  "pypdf",
+  "python-docx",
+  "python-multipart",
+  "Jinja2",
+  "psycopg[binary]",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
+
+[tool.setuptools.packages.find]
+include = ["laprak*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
